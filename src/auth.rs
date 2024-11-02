@@ -15,6 +15,7 @@ impl S3Auth for Auth {
 
     async fn check_access(&self, _cx: &mut S3AuthContext<'_>) -> S3Result<()> {
         // TODO: Implement access control
-        unimplemented!()
+        // Right now, we allow all requests
+        S3Result::Ok(())
     }
 }
