@@ -21,3 +21,4 @@ console_error_panic_hook = { version = "0.1.1" }
 http = "1.1"
 s3s = "0.10.1"
 tracing = "0.1.40"
+async-trait = "0.1.83"

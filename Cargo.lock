@@ -454,6 +454,7 @@ dependencies = [
 name = "my-s3-api"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "console_error_panic_hook",
  "http",
  "s3s",
