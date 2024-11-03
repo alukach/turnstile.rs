@@ -1,8 +1,8 @@
 [package]
+authors = ["Anthony Lukach <anthonylukach@gmail.com>"]
+edition = "2021"
 name = "my-s3-api"
 version = "0.1.0"
-edition = "2021"
-authors = [ "Anthony Lukach <anthonylukach@gmail.com>" ]
 
 [package.metadata.release]
 release = false
@@ -15,10 +15,14 @@ wasm-opt = false
 crate-type = ["cdylib"]
 
 [dependencies]
-worker = { version="0.4.2", features=['http'] }
-worker-macros = { version="0.4.2", features=['http'] }
-console_error_panic_hook = { version = "0.1.1" }
-http = "1.1"
-s3s = "0.10.1"
-tracing = "0.1.40"
 async-trait = "0.1.83"
+console_error_panic_hook = {version = "0.1.1"}
+http = "1.1"
+object_store = "0.11.1"
+postgrest = "1.6.0"
+reqwest = {version = "0.11", features = ["json"]}
+s3s = "0.10.1"
+serde = "1.0.214"
+tracing = "0.1.40"
+worker = {version = "0.4.2", features = ["http"]}
+worker-macros = {version = "0.4.2", features = ["http"]}

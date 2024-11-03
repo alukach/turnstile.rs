@@ -1,6 +1,9 @@
-name = "my-s3-api"
-main = "build/worker/shim.mjs"
 compatibility_date = "2024-11-01"
+main = "build/worker/shim.mjs"
+name = "my-s3-api"
 
 [build]
 command = "cargo install -q worker-build && worker-build --release"
+
+[vars]
+SUPABASE_API_URL = "https://jkfyqfdufnjqcnyeljso.supabase.co"
