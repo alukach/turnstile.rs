@@ -35,7 +35,7 @@ impl S3 for DummyBackend {
         let db_buckets = req
             .json::<Vec<BucketRecord>>()
             .await
-            .map_err(|_e| return S3Error::new(S3ErrorCode::InternalError))?;
+            .map_err(|_e| S3Error::new(S3ErrorCode::InternalError))?;
 
         let buckets = db_buckets
             .into_iter()
