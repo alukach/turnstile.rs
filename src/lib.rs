@@ -1,9 +1,10 @@
-mod auth;
-mod s3_backends;
+pub mod auth;
+pub mod controller;
+pub mod db;
 // mod object_store;
 
 use auth::AuthBackend;
-use s3_backends::postgrest::Postgrest;
+use controller::Controller;
 use s3s::service::S3ServiceBuilder;
 use tracing::{debug, error};
 use worker::{event, Context, Env, HttpRequest};
@@ -16,8 +17,8 @@ async fn fetch(
 ) -> s3s::S3Result<http::Response<s3s::Body>> {
     console_error_panic_hook::set_once();
 
-    // Build S3 Backend
-    let s3_backend = Postgrest::new(
+    // Build backend
+    let db_backend = db::postgrest::Postgrest::new(
         env.var("API_URL")
             .map_err(|e| {
                 s3s::S3Error::with_message(
@@ -35,9 +36,10 @@ async fn fetch(
             })?
             .to_string(),
     );
+    let backend = Controller::new(Box::new(db_backend));
 
-    // Assemble S3 service
-    let mut builder = S3ServiceBuilder::new(s3_backend);
+    // Assemble S3S request handler
+    let mut builder = S3ServiceBuilder::new(backend);
     builder.set_auth(AuthBackend {});
     let s3_service = builder.build();
 
