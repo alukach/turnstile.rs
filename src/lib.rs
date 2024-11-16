@@ -1,9 +1,10 @@
 mod auth;
-mod backend;
+mod s3_backends;
 // mod object_store;
-mod server;
 
-use server::Config;
+use auth::AuthBackend;
+use s3_backends::postgrest::Postgrest;
+use s3s::service::S3ServiceBuilder;
 use tracing::{debug, error};
 use worker::{event, Context, Env, HttpRequest};
 
@@ -14,19 +15,39 @@ async fn fetch(
     _ctx: Context,
 ) -> s3s::S3Result<http::Response<s3s::Body>> {
     console_error_panic_hook::set_once();
-    let Ok(service_config) = Config::from_cf_env(env) else {
-        return Err(s3s::S3Error::new(s3s::S3ErrorCode::InternalError));
-    };
-    let s3_service = service_config.build_service();
 
+    // Build S3 Backend
+    let s3_backend = Postgrest::new(
+        env.var("API_URL")
+            .map_err(|e| {
+                s3s::S3Error::with_message(
+                    s3s::S3ErrorCode::ServiceUnavailable,
+                    format!("Failed to generate service config: {}", e),
+                )
+            })?
+            .to_string(),
+        env.secret("API_KEY")
+            .map_err(|e| {
+                s3s::S3Error::with_message(
+                    s3s::S3ErrorCode::ServiceUnavailable,
+                    format!("Failed to generate service config: {}", e),
+                )
+            })?
+            .to_string(),
+    );
+
+    // Assemble S3 service
+    let mut builder = S3ServiceBuilder::new(s3_backend);
+    builder.set_auth(AuthBackend {});
+    let s3_service = builder.build();
+
+    // Handle request
     let res = s3_service
         .call(req.map(|body| s3s::Body::http_body(body)))
         .await;
-
     match res {
         Ok(ref res) => debug!(?res),
         Err(ref err) => error!(?err),
     };
-
     res
 }
