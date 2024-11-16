@@ -1,9 +1,13 @@
 use postgrest::Postgrest as PostgrestClient;
-use s3s::{dto, S3Error, S3ErrorCode, S3Result};
+use s3s::{
+    auth::{S3Auth, S3AuthContext, SecretKey},
+    dto, S3Error, S3ErrorCode, S3Result,
+};
 use serde::Deserialize;
 
 use crate::db::Backend;
 
+#[derive(Clone)]
 pub struct Postgrest {
     pub db: PostgrestClient,
 }
@@ -69,8 +73,24 @@ impl Postgrest {
 #[async_trait::async_trait]
 impl Backend for Postgrest {
     async fn list(&self) -> S3Result<dto::ListBucketsOutput> {
-        // TODO: I have no idea why this doesn't cause infinite recursion
         self.list().await
+    }
+}
+
+#[async_trait::async_trait]
+impl S3Auth for Postgrest {
+    async fn get_secret_key(&self, access_key: &str) -> S3Result<SecretKey> {
+        // TODO: Fetch secret from DB
+        // Right now, the secret key is the reverse of the access key
+        Ok(SecretKey::from(
+            access_key.chars().rev().collect::<String>(),
+        ))
+    }
+
+    async fn check_access(&self, _cx: &mut S3AuthContext<'_>) -> S3Result<()> {
+        // TODO: Implement access control
+        // Right now, we allow all requests
+        S3Result::Ok(())
     }
 }
 
