@@ -3,10 +3,10 @@ pub mod db;
 mod utils;
 // mod object_store;
 
-use controller::Controller;
+use crate::controller::Controller;
+use crate::utils::env::get_env_value;
 use s3s::service::S3ServiceBuilder;
 use tracing::{debug, error};
-use utils::env::get_env_value;
 use worker::{event, Context, Env, HttpRequest};
 
 #[event(fetch)]
