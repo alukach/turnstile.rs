@@ -8,7 +8,7 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub fn from(db: Box<dyn Backend>) -> Self {
+    pub fn new(db: Box<dyn Backend>) -> Self {
         Self { db }
     }
 }
@@ -25,8 +25,8 @@ impl S3 for Controller {
     }
 }
 
-impl Into<S3ServiceBuilder> for Controller {
-    fn into(self) -> S3ServiceBuilder {
-        S3ServiceBuilder::new(self)
+impl From<Controller> for S3ServiceBuilder {
+    fn from(controller: Controller) -> Self {
+        Self::new(controller)
     }
 }

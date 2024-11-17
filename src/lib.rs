@@ -37,7 +37,7 @@ async fn fetch(
     let auth_backend = db_backend.clone();
 
     // Create S3S request handler
-    let mut builder: S3ServiceBuilder = Controller::from(Box::new(db_backend)).into();
+    let mut builder = S3ServiceBuilder::from(Controller::new(Box::new(db_backend)));
     builder.set_auth(auth_backend);
 
     // Handle request
