@@ -1,7 +1,10 @@
+/// A backend written for Postgrest. Expects a very specific schema to be loaded onto
+/// the database.
 use postgrest::Postgrest as PostgrestClient;
 use s3s::{
     auth::{S3Auth, S3AuthContext, SecretKey},
-    dto, S3Error, S3ErrorCode, S3Result,
+    dto::{self, ParseTimestampError},
+    S3Error, S3ErrorCode, S3Result,
 };
 use serde::Deserialize;
 
@@ -43,15 +46,7 @@ impl Postgrest {
 
         let buckets = db_buckets
             .into_iter()
-            .map(|record| {
-                dto::Timestamp::parse(dto::TimestampFormat::DateTime, record.created_at.as_str())
-                    .and_then(|ts| {
-                        Ok(dto::Bucket {
-                            name: Some(record.slug),
-                            creation_date: Some(ts),
-                        })
-                    })
-            })
+            .map(|record: DbBucketRecord| dto::Bucket::try_from(record))
             .collect::<Result<Vec<dto::Bucket>, dto::ParseTimestampError>>()
             .map_err(|e| {
                 S3Error::with_message(
@@ -98,4 +93,18 @@ impl S3Auth for Postgrest {
 struct DbBucketRecord {
     slug: String,
     created_at: String,
+}
+
+impl TryFrom<DbBucketRecord> for dto::Bucket {
+    type Error = ParseTimestampError;
+
+    fn try_from(record: DbBucketRecord) -> Result<Self, Self::Error> {
+        Ok(Self {
+            name: Some(record.slug),
+            creation_date: Some(dto::Timestamp::parse(
+                dto::TimestampFormat::DateTime,
+                record.created_at.as_str(),
+            )?),
+        })
+    }
 }
