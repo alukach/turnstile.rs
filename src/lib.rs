@@ -1,10 +1,12 @@
 pub mod controller;
 pub mod db;
+mod utils;
 // mod object_store;
 
 use controller::Controller;
 use s3s::service::S3ServiceBuilder;
 use tracing::{debug, error};
+use utils::env::get_env_value;
 use worker::{event, Context, Env, HttpRequest};
 
 #[event(fetch)]
@@ -16,24 +18,9 @@ async fn fetch(
     console_error_panic_hook::set_once();
 
     // Configure Backends
-    let db_backend = db::postgrest::Postgrest::new(
-        env.var("API_URL")
-            .map_err(|e| {
-                s3s::S3Error::with_message(
-                    s3s::S3ErrorCode::ServiceUnavailable,
-                    format!("Failed to generate service config: {}", e),
-                )
-            })?
-            .to_string(),
-        env.secret("API_KEY")
-            .map_err(|e| {
-                s3s::S3Error::with_message(
-                    s3s::S3ErrorCode::ServiceUnavailable,
-                    format!("Failed to generate service config: {}", e),
-                )
-            })?
-            .to_string(),
-    );
+    let api_url = get_env_value(|v| env.var(v), "API_URL")?;
+    let api_key = get_env_value(|v| env.secret(v), "API_KEY")?;
+    let db_backend = db::postgrest::Postgrest::new(api_url, api_key);
     let auth_backend = db_backend.clone();
 
     // Create S3S request handler

@@ -4,11 +4,11 @@ use postgrest::Postgrest as PostgrestClient;
 use s3s::{
     auth::{S3Auth, S3AuthContext, SecretKey},
     dto::{self, ParseTimestampError},
-    S3Error, S3ErrorCode, S3Result,
+    S3ErrorCode, S3Result,
 };
 use serde::Deserialize;
 
-use crate::db::Backend;
+use crate::{db::Backend, utils::error_ext::MapS3Error};
 
 #[derive(Clone)]
 pub struct Postgrest {
@@ -30,34 +30,27 @@ impl Postgrest {
             .select("slug, created_at")
             .execute()
             .await
-            .map_err(|e| {
-                S3Error::with_message(
-                    S3ErrorCode::InternalError,
-                    format!("Failed to execute PostgREST query: {e:?}"),
-                )
-            })?;
-
-        let db_buckets = res.json::<Vec<DbBucketRecord>>().await.map_err(|e| {
-            S3Error::with_message(
+            .map_s3_error(
                 S3ErrorCode::InternalError,
-                format!("Failed to parse PostgREST response: {e:?}"),
-            )
-        })?;
+                "Failed to execute PostgREST query",
+            )?;
 
-        let buckets = db_buckets
+        let buckets = res
+            .json::<Vec<DbBucketRecord>>()
+            .await
+            .map_s3_error(
+                S3ErrorCode::InternalError,
+                "Failed to parse PostgREST response",
+            )?
             .into_iter()
-            .map(|record: DbBucketRecord| dto::Bucket::try_from(record))
+            .map(dto::Bucket::try_from)
             .collect::<Result<Vec<dto::Bucket>, dto::ParseTimestampError>>()
-            .map_err(|e| {
-                S3Error::with_message(
-                    S3ErrorCode::InternalError,
-                    format!("Failed to parse timestamp: {e:?}"),
-                )
-            })?;
+            .map_s3_error(S3ErrorCode::InternalError, "Failed to parse timestamp")?;
 
         Ok(dto::ListBucketsOutput {
             buckets: Some(buckets),
             owner: Some(dto::Owner {
+                // TODO: Populate with information from authenticated user
                 display_name: Some("dummy".to_string()),
                 id: Some("dummy".to_string()),
             }),
@@ -67,6 +60,8 @@ impl Postgrest {
 
 #[async_trait::async_trait]
 impl Backend for Postgrest {
+    // NOTE: Must separate the controller from the Backend methods to avoid the
+    // `Rc<RefCell<wasm_bindgen_futures::Inner>> cannot be sent between threads safely` error (https://github.com/cloudflare/workers-rs/issues/485)
     async fn list(&self) -> S3Result<dto::ListBucketsOutput> {
         self.list().await
     }
