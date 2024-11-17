@@ -1,5 +1,5 @@
-// The Controller marshals S3 requests to the appropriate backends. It is where business
-// logic will be applied.
+/// The Controller delivers S3 requests to the appropriate backends, applying appropriate
+/// business logic along the way.
 use crate::db::Backend;
 use s3s::{dto, service::S3ServiceBuilder, S3Request, S3Response, S3Result, S3};
 
