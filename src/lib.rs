@@ -4,7 +4,7 @@ mod utils;
 // mod object_store;
 
 use crate::controller::Controller;
-use crate::utils::env::get_env_value;
+use crate::utils::env::EnvExt;
 use s3s::service::S3ServiceBuilder;
 use tracing::{debug, error};
 use worker::{event, Context, Env, HttpRequest};
@@ -18,8 +18,8 @@ async fn fetch(
     console_error_panic_hook::set_once();
 
     // Configure Backends
-    let api_url = get_env_value(|v| env.var(v), "API_URL")?;
-    let api_key = get_env_value(|v| env.secret(v), "API_KEY")?;
+    let api_url = env.get_val("API_URL")?;
+    let api_key = env.get_secret("API_KEY")?;
     let db_backend = db::postgrest::Postgrest::new(api_url, api_key);
     let auth_backend = db_backend.clone();
 
