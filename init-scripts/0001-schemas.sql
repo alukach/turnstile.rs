@@ -1,2 +1,4 @@
 CREATE SCHEMA api;
 
+CREATE SCHEMA private;
+
