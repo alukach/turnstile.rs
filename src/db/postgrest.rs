@@ -1,14 +1,15 @@
 /// A backend written for Postgrest. Expects a very specific schema to be loaded onto
 /// the database.
+use crate::models::User;
 use postgrest::Postgrest as PostgrestClient;
 use s3s::{
-    auth::{S3Auth, S3AuthContext, SecretKey},
+    auth::{Credentials, S3Auth, S3AuthContext, SecretKey},
     dto::{self, ParseTimestampError},
     S3ErrorCode, S3Result,
 };
 use serde::Deserialize;
 
-use crate::{db::Backend, utils::error_ext::MapS3Error};
+use crate::{db::Backend, models::Context, utils::error_ext::MapS3Error};
 
 #[derive(Clone)]
 pub struct Postgrest {
@@ -23,7 +24,7 @@ impl Postgrest {
     }
 
     #[worker::send] // https://github.com/cloudflare/workers-rs/issues/485#issuecomment-2008599314
-    async fn list(&self) -> S3Result<dto::ListBucketsOutput> {
+    async fn list(&self, ctx: Context) -> S3Result<dto::ListBucketsOutput> {
         let res = self
             .db
             .from("bucket")
@@ -49,11 +50,13 @@ impl Postgrest {
 
         Ok(dto::ListBucketsOutput {
             buckets: Some(buckets),
-            owner: Some(dto::Owner {
-                // TODO: Populate with information from authenticated user
-                display_name: Some("dummy".to_string()),
-                id: Some("dummy".to_string()),
-            }),
+            owner: match ctx.user {
+                Some(user) => Some(dto::Owner {
+                    display_name: Some(user.username),
+                    id: Some(user.id),
+                }),
+                None => None,
+            },
         })
     }
 }
@@ -62,16 +65,25 @@ impl Postgrest {
 impl Backend for Postgrest {
     // NOTE: Must separate the controller from the Backend methods to avoid the
     // `Rc<RefCell<wasm_bindgen_futures::Inner>> cannot be sent between threads safely` error (https://github.com/cloudflare/workers-rs/issues/485)
-    async fn list(&self) -> S3Result<dto::ListBucketsOutput> {
-        self.list().await
+    async fn list(&self, ctx: Context) -> S3Result<dto::ListBucketsOutput> {
+        self.list(ctx).await
     }
 }
 
 #[async_trait::async_trait]
 impl S3Auth for Postgrest {
     async fn get_secret_key(&self, access_key: &str) -> S3Result<SecretKey> {
-        // TODO: Fetch secret from DB
-        // Right now, the secret key is the reverse of the access key
+        // NOTE: Fetch with service-level auth token
+        // let Ok(secret) = self
+        //     .db
+        //     .from("key")
+        //     .select("secret")
+        //     .eq("id", access_key)
+        //     .execute()
+        //     .await
+        // else {
+        //     return Err(S3ErrorCode::InternalError.into());
+        // };
         Ok(SecretKey::from(
             access_key.chars().rev().collect::<String>(),
         ))
@@ -79,6 +91,20 @@ impl S3Auth for Postgrest {
 
     async fn check_access(&self, _cx: &mut S3AuthContext<'_>) -> S3Result<()> {
         // TODO: Implement access control
+        // - 1. Check DB for relationship between key & target
+        // - 2. Check CEL logic (?)
+
+        // TODO: If access is granted, the user will be stored in context
+        // https://blog.adamchalmers.com/what-are-extensions/
+        let ctx = Context {
+            user: Some(User {
+                id: "fake-id".to_string(),
+                username: "fake-username".to_string(),
+            }),
+            // s3_context: *_cx,
+        };
+        _cx.extensions_mut().insert(ctx);
+
         // Right now, we allow all requests
         S3Result::Ok(())
     }

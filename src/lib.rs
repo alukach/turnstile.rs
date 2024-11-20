@@ -1,6 +1,7 @@
 pub mod controller;
 pub mod db;
 mod utils;
+mod models;
 // mod object_store;
 
 use crate::controller::Controller;
